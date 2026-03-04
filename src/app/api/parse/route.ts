@@ -1,4 +1,8 @@
 import { NextResponse } from 'next/server';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
 
 let cachedClientId: string | null = null;
 let clientIdTime: number = 0;
@@ -250,6 +254,17 @@ export async function POST(req: Request) {
 
         }
 
+
+        // YouTube / yt-dlp
+        if (url.includes('youtube.com/') || url.includes('youtu.be/') || url.includes('youtube.com/shorts/')) {
+            const { stdout } = await execAsync(
+                `yt-dlp --get-url --format "bestaudio" --no-playlist "${url}"`,
+                { timeout: 30000 }
+            );
+            const audioUrl = stdout.trim().split('\n')[0];
+            if (!audioUrl) throw new Error('无法从该 YouTube 视频中提取音频。');
+            return NextResponse.json({ segments: [audioUrl], raw: audioUrl, isSingleFile: true, format: 'mp3' });
+        }
 
         // Standard M3U8 Fetching
         const response = await fetch(m3u8Url);

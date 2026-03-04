@@ -254,7 +254,7 @@ export async function POST(req: Request) {
         // YouTube / yt-dlp — return a server-side streaming URL (IP-bound direct links can't be proxied)
         if (url.includes('youtube.com/') || url.includes('youtu.be/') || url.includes('youtube.com/shorts/')) {
             const streamUrl = `/api/youtube?url=${encodeURIComponent(url)}`;
-            return NextResponse.json({ segments: [streamUrl], raw: streamUrl, isSingleFile: true, format: 'webm', isServerStream: true });
+            return NextResponse.json({ segments: [streamUrl], raw: streamUrl, isSingleFile: true, format: 'mp3', isServerStream: true });
         }
 
         // Standard M3U8 Fetching

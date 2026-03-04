@@ -17,27 +17,28 @@ export async function GET(req: Request) {
         return NextResponse.json({ error: 'URL is required' }, { status: 400 });
     }
 
-    const tmpFile = join(tmpdir(), `yt-${Date.now()}.webm`);
+    const tmpBase = join(tmpdir(), `yt-${Date.now()}`);
+    const tmpMp3 = `${tmpBase}.mp3`;
 
     try {
         const { stderr } = await execAsync(
-            `yt-dlp --format "bestaudio" --no-playlist -o "${tmpFile}" "${url}"`,
-            { timeout: 120000 }
+            `yt-dlp --format "bestaudio" --no-playlist --extract-audio --audio-format mp3 --audio-quality 0 -o "${tmpBase}.%(ext)s" "${url}"`,
+            { timeout: 180000 }
         );
         if (stderr) console.error('[yt-dlp stderr]', stderr.slice(0, 500));
 
-        const data = await readFile(tmpFile);
-        unlink(tmpFile).catch(() => {});
+        const data = await readFile(tmpMp3);
+        unlink(tmpMp3).catch(() => {});
 
         return new Response(data, {
             headers: {
-                'Content-Type': 'audio/webm',
-                'Content-Disposition': 'attachment; filename="audio.webm"',
+                'Content-Type': 'audio/mpeg',
+                'Content-Disposition': 'attachment; filename="audio.mp3"',
                 'Content-Length': String(data.length),
             },
         });
     } catch (err: unknown) {
-        unlink(tmpFile).catch(() => {});
+        unlink(tmpMp3).catch(() => {});
         const message = err instanceof Error ? err.message : '下载失败';
         console.error('[youtube API error]', message);
         return NextResponse.json({ error: message }, { status: 500 });

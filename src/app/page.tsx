@@ -55,8 +55,8 @@ export default function Home() {
         setStatus('downloading');
         setProgress({ current: 0, total: 1 });
 
-        // isServerStream: URL is already a server-side streaming endpoint (e.g. YouTube)
-        const fetchUrl = isServerStream ? segments[0] : `/api/proxy?url=${encodeURIComponent(segments[0])}`;
+        // Internal API paths (e.g. /api/youtube) are fetched directly; external URLs go through proxy
+        const fetchUrl = (isServerStream || segments[0].startsWith('/api/')) ? segments[0] : `/api/proxy?url=${encodeURIComponent(segments[0])}`;
         const res = await fetch(fetchUrl);
         if (!res.ok) throw new Error(`下载失败：HTTP ${res.status}`);
 

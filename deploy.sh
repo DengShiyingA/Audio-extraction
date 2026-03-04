@@ -27,7 +27,7 @@ ssh root@$SERVER_IP "
   set -e
   cd $SERVER_DIR
   git pull origin main
-  npm install --production
+  npm install
   npm run build
   pm2 restart audio-parser
   echo '✓ 服务器部署完成'

@@ -1,5 +1,11 @@
 import { NextResponse } from 'next/server';
-import { spawn } from 'child_process';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import { readFile, unlink } from 'fs/promises';
+import { tmpdir } from 'os';
+import { join } from 'path';
+
+const execAsync = promisify(exec);
 
 export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
@@ -9,38 +15,26 @@ export async function GET(req: Request) {
         return NextResponse.json({ error: 'URL is required' }, { status: 400 });
     }
 
+    const tmpFile = join(tmpdir(), `yt-${Date.now()}.webm`);
+
     try {
-        // Stream audio directly from yt-dlp to the response
-        const ytdlp = spawn('yt-dlp', [
-            '--format', 'bestaudio',
-            '--no-playlist',
-            '-o', '-',  // output to stdout
-            url,
-        ]);
+        await execAsync(
+            `yt-dlp --format "bestaudio" --no-playlist -o "${tmpFile}" "${url}"`,
+            { timeout: 120000 }
+        );
 
-        let stderr = '';
-        ytdlp.stderr.on('data', (d: Buffer) => { stderr += d.toString(); });
+        const data = await readFile(tmpFile);
+        unlink(tmpFile).catch(() => {});
 
-        const stream = new ReadableStream({
-            start(controller) {
-                ytdlp.stdout.on('data', (chunk: Buffer) => controller.enqueue(chunk));
-                ytdlp.stdout.on('end', () => controller.close());
-                ytdlp.stdout.on('error', (e: Error) => controller.error(e));
-                ytdlp.on('error', (e: Error) => controller.error(e));
-            },
-            cancel() {
-                ytdlp.kill();
-            },
-        });
-
-        return new Response(stream, {
+        return new Response(data, {
             headers: {
                 'Content-Type': 'audio/webm',
                 'Content-Disposition': 'attachment; filename="audio.webm"',
-                'Cache-Control': 'no-cache',
+                'Content-Length': String(data.length),
             },
         });
     } catch (err: unknown) {
+        unlink(tmpFile).catch(() => {});
         const message = err instanceof Error ? err.message : '下载失败';
         return NextResponse.json({ error: message }, { status: 500 });
     }

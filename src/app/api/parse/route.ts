@@ -52,11 +52,11 @@ export async function POST(req: Request) {
         // Follow short-link redirects for qishui.douyin.com/s/ URLs
         if (url.includes('qishui.douyin.com/s/') || url.includes('qishui.douyin.com/s')) {
             const redirectRes = await fetch(url, {
-                method: 'HEAD',
-                redirect: 'follow',
+                method: 'GET',
+                redirect: 'manual',
                 headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
             });
-            url = redirectRes.url; // resolved final URL
+            url = redirectRes.headers.get('location') || redirectRes.url || url;
         }
 
         let m3u8Url = url;
@@ -155,18 +155,17 @@ export async function POST(req: Request) {
 
             let resolvedUrl = url;
 
-            // Follow short-link redirect
+            // Follow short-link redirect — use manual mode to only read Location header (faster)
             if (url.includes('v.douyin.com')) {
                 const redirectRes = await fetchWithTimeout(url, {
                     method: 'GET',
-                    redirect: 'follow',
+                    redirect: 'manual',
                     headers: {
                         'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
-                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
                         'Accept-Language': 'zh-CN,zh;q=0.9',
                     }
                 });
-                resolvedUrl = redirectRes.url;
+                resolvedUrl = redirectRes.headers.get('location') || url;
             }
 
             // Handle music page links (share/music/)

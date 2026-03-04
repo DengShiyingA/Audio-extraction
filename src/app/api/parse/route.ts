@@ -20,10 +20,12 @@ async function getClientId() {
                 scriptUrls.push(match[1]);
             }
         }
-        for (let i = scriptUrls.length - 1; i >= 0; i--) {
-            const scriptRes = await fetch(scriptUrls[i]);
-            const scriptText = await scriptRes.text();
-            const clientMatch = scriptText.match(/client_id:"([A-Za-z0-9_-]{32})/);
+        // Fetch all scripts in parallel (last ones most likely to have client_id)
+        const results = await Promise.all(
+            scriptUrls.slice(-5).map(u => fetch(u).then(r => r.text()).catch(() => ''))
+        );
+        for (let i = results.length - 1; i >= 0; i--) {
+            const clientMatch = results[i].match(/client_id:"([A-Za-z0-9_-]{32})/);
             if (clientMatch) {
                 cachedClientId = clientMatch[1];
                 clientIdTime = Date.now();

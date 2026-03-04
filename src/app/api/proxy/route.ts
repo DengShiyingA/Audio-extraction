@@ -8,8 +8,13 @@ export async function GET(req: Request) {
         return NextResponse.json({ error: 'URL is required' }, { status: 400 });
     }
 
+    // If the URL is a relative internal path (e.g. /api/youtube?url=...), resolve it internally
+    const resolvedUrl = targetUrl.startsWith('/')
+        ? new URL(targetUrl, req.url).toString()
+        : targetUrl;
+
     try {
-        const response = await fetch(targetUrl, { redirect: 'follow' });
+        const response = await fetch(resolvedUrl, { redirect: 'follow' });
 
         if (!response.ok) {
             throw new Error(`Failed to fetch segment: ${response.statusText}`);

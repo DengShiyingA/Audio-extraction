@@ -147,25 +147,23 @@ export async function POST(req: Request) {
             // Qishui gives us an MP4/M4A video/audio stream URL, not an M3U8 list.
             // So we can just return this directly as a segment of 1.
             return NextResponse.json({ segments: [qishuiUrl], raw: qishuiUrl, isSingleFile: true });
-        } else if (url.includes('v.douyin.com') || url.includes('douyin.com/video/') || url.includes('douyin.com/share/video') || url.includes('douyin.com/share/music') || url.includes('iesdouyin.com/share/video') || url.includes('iesdouyin.com/share/music')) {
+        } else if (url.includes('v.douyin.com') || url.includes('douyin.com/video/') || url.includes('douyin.com/share/video') || url.includes('douyin.com/share/music') || url.includes('iesdouyin.com/share/video') || url.includes('iesdouyin.com/share/music') || url.includes('tiktok.com/') || url.includes('vm.tiktok.com/') || url.includes('vt.tiktok.com/')) {
             const fetchWithTimeout = (u: string, opts: RequestInit = {}, ms = 10000) => {
                 const ctrl = new AbortController();
                 setTimeout(() => ctrl.abort(), ms);
                 return fetch(u, { ...opts, signal: ctrl.signal });
             };
             const douyinUA = 'com.ss.android.ugc.aweme/110101 (Linux; U; Android 10; en_US; Pixel 4; Build/QQ3A.200805.001; Cronet/TTNetVersion:6c7b701a 2020-07-28 QuicVersion:0144d358 2020-03-27)';
+            const mobileUA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
 
             let resolvedUrl = url;
 
             // Follow short-link redirect — use manual mode to only read Location header (faster)
-            if (url.includes('v.douyin.com')) {
+            if (url.includes('v.douyin.com') || url.includes('vm.tiktok.com/') || url.includes('vt.tiktok.com/')) {
                 const redirectRes = await fetchWithTimeout(url, {
                     method: 'GET',
                     redirect: 'manual',
-                    headers: {
-                        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
-                        'Accept-Language': 'zh-CN,zh;q=0.9',
-                    }
+                    headers: { 'User-Agent': mobileUA, 'Accept-Language': 'zh-CN,zh;q=0.9' }
                 });
                 resolvedUrl = redirectRes.headers.get('location') || url;
             }
@@ -209,7 +207,7 @@ export async function POST(req: Request) {
                 }
             }
 
-            throw new Error('无法从该抖音视频中提取音乐，该视频可能没有背景音乐、已删除或设为私密。');
+            throw new Error('无法从该视频中提取音乐，该视频可能没有背景音乐、已删除或设为私密。');
 
         }
 

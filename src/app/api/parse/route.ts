@@ -146,15 +146,11 @@ export async function POST(req: Request) {
             // So we can just return this directly as a segment of 1.
             return NextResponse.json({ segments: [qishuiUrl], raw: qishuiUrl, isSingleFile: true });
         } else if (url.includes('v.douyin.com') || url.includes('douyin.com/video/') || url.includes('douyin.com/share/video') || url.includes('iesdouyin.com/share/video')) {
-            const timeout = (ms: number) => new AbortController().signal;
             const fetchWithTimeout = (u: string, opts: RequestInit = {}, ms = 10000) => {
                 const ctrl = new AbortController();
                 setTimeout(() => ctrl.abort(), ms);
                 return fetch(u, { ...opts, signal: ctrl.signal });
             };
-
-            const decodeJsonUrl = (u: string) => { try { return JSON.parse('"' + u + '"') as string; } catch { return u; } };
-            void timeout; // suppress unused warning
 
             let resolvedUrl = url;
 
@@ -181,65 +177,20 @@ export async function POST(req: Request) {
             }
             const videoId = videoIdMatch[1];
 
-            // Fetch douyin.com page and share page in parallel
-            const douyinPageUrl = `https://www.douyin.com/video/${videoId}`;
-            const [pageRes, shareRes] = await Promise.all([
-                fetchWithTimeout(douyinPageUrl, {
-                    headers: {
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36',
-                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                        'Accept-Language': 'zh-CN,zh;q=0.9',
-                        'Referer': 'https://www.douyin.com/',
-                    }
-                }).catch(() => null),
-                fetchWithTimeout(resolvedUrl, {
-                    headers: {
-                        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
-                        'Accept-Language': 'zh-CN,zh;q=0.9',
-                    }
-                }).catch(() => null),
-            ]);
-
-            const html = pageRes ? await pageRes.text() : '';
-            const shareHtml = shareRes ? await shareRes.text() : '';
-
-            // Try all known douyin.com data-embedding patterns
-            const routerPatterns = [
-                /_ROUTER_DATA\s*=\s*({[\s\S]*?});\s*\n/,
-                /window\.__routerData\s*=\s*({[\s\S]*?});\s*\n/,
-                /<script id="RENDER_DATA" type="application\/json">([^<]+)<\/script>/,
-                /window\.__INITIAL_STATE__\s*=\s*({[\s\S]*?});\s*\n/,
-                /window\.__initialData__\s*=\s*({[\s\S]*?});\s*\n/,
-            ];
-            for (const pat of routerPatterns) {
-                const m = html.match(pat);
-                if (!m) continue;
-                try {
-                    const raw = m[1];
-                    const data = JSON.parse(raw.startsWith('%') ? decodeURIComponent(raw) : raw);
-                    const dataStr = JSON.stringify(data);
-                    const muMatch = dataStr.match(/"play_url":\{"uri":"([^"]+)","url_list":\["([^"]+)"/) ||
-                        dataStr.match(/"music_url":\{"uri":"([^"]+)","url_list":\["([^"]+)"/);
-                    if (muMatch) {
-                        const mu = decodeJsonUrl(muMatch[2] || muMatch[1]);
-                        if (mu.startsWith('http')) return NextResponse.json({ segments: [mu], raw: mu, isSingleFile: true, format: 'mp3' });
-                    }
-                } catch { /* continue */ }
-            }
-
-            // Search share page for music URL
-            const shareMusicPatterns = [
-                /"play_url":\{"uri":"[^"]+","url_list":\["([^"]+)"/,
-                /"music_url":"(https?[^"]+)"/,
-                /"play_url":\{[^}]{0,300}"url_list":\["([^"]+)"/,
-            ];
-            for (const pat of shareMusicPatterns) {
-                const m = shareHtml.match(pat);
-                if (m) {
-                    const mu = decodeJsonUrl(m[m.length - 1]);
-                    if (mu.startsWith('http')) {
-                        return NextResponse.json({ segments: [mu], raw: mu, isSingleFile: true, format: 'mp3' });
-                    }
+            // Use Douyin mobile API to get music info directly
+            const mobileApiUrl = `https://api.amemv.com/aweme/v1/feed/?aweme_id=${videoId}&version_code=110101&version_name=11.1.0`;
+            const apiRes = await fetchWithTimeout(mobileApiUrl, {
+                headers: {
+                    'User-Agent': 'com.ss.android.ugc.aweme/110101 (Linux; U; Android 10; en_US; Pixel 4; Build/QQ3A.200805.001; Cronet/TTNetVersion:6c7b701a 2020-07-28 QuicVersion:0144d358 2020-03-27)',
+                }
+            });
+            if (apiRes.ok) {
+                const apiData = await apiRes.json();
+                const aweme = apiData?.aweme_list?.[0];
+                const musicUrls: string[] = aweme?.music?.play_url?.url_list ?? [];
+                const musicUrl = musicUrls.find((u: string) => u.startsWith('http'));
+                if (musicUrl) {
+                    return NextResponse.json({ segments: [musicUrl], raw: musicUrl, isSingleFile: true, format: 'mp3' });
                 }
             }
 

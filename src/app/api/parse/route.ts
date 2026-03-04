@@ -145,12 +145,13 @@ export async function POST(req: Request) {
             // Qishui gives us an MP4/M4A video/audio stream URL, not an M3U8 list.
             // So we can just return this directly as a segment of 1.
             return NextResponse.json({ segments: [qishuiUrl], raw: qishuiUrl, isSingleFile: true });
-        } else if (url.includes('v.douyin.com') || url.includes('douyin.com/video/') || url.includes('douyin.com/share/video') || url.includes('iesdouyin.com/share/video')) {
+        } else if (url.includes('v.douyin.com') || url.includes('douyin.com/video/') || url.includes('douyin.com/share/video') || url.includes('douyin.com/share/music') || url.includes('iesdouyin.com/share/video') || url.includes('iesdouyin.com/share/music')) {
             const fetchWithTimeout = (u: string, opts: RequestInit = {}, ms = 10000) => {
                 const ctrl = new AbortController();
                 setTimeout(() => ctrl.abort(), ms);
                 return fetch(u, { ...opts, signal: ctrl.signal });
             };
+            const douyinUA = 'com.ss.android.ugc.aweme/110101 (Linux; U; Android 10; en_US; Pixel 4; Build/QQ3A.200805.001; Cronet/TTNetVersion:6c7b701a 2020-07-28 QuicVersion:0144d358 2020-03-27)';
 
             let resolvedUrl = url;
 
@@ -168,6 +169,23 @@ export async function POST(req: Request) {
                 resolvedUrl = redirectRes.url;
             }
 
+            // Handle music page links (share/music/)
+            const musicIdMatch = resolvedUrl.match(/share\/music\/(\d+)/);
+            if (musicIdMatch) {
+                const musicId = musicIdMatch[1];
+                const musicApiUrl = `https://api.amemv.com/aweme/v1/music/detail/?music_id=${musicId}&version_code=110101&version_name=11.1.0`;
+                const musicRes = await fetchWithTimeout(musicApiUrl, { headers: { 'User-Agent': douyinUA } });
+                if (musicRes.ok) {
+                    const musicData = await musicRes.json();
+                    const musicUrls: string[] = musicData?.music_info?.play_url?.url_list ?? [];
+                    const musicUrl = musicUrls.find((u: string) => u.startsWith('http'));
+                    if (musicUrl) {
+                        return NextResponse.json({ segments: [musicUrl], raw: musicUrl, isSingleFile: true, format: 'mp3' });
+                    }
+                }
+                throw new Error('无法获取该抖音音乐的下载链接。');
+            }
+
             // Extract video ID
             const videoIdMatch = resolvedUrl.match(/video\/(\d+)/) ||
                 resolvedUrl.match(/aweme_id=(\d+)/) ||
@@ -179,11 +197,7 @@ export async function POST(req: Request) {
 
             // Use Douyin mobile API to get music info directly
             const mobileApiUrl = `https://api.amemv.com/aweme/v1/feed/?aweme_id=${videoId}&version_code=110101&version_name=11.1.0`;
-            const apiRes = await fetchWithTimeout(mobileApiUrl, {
-                headers: {
-                    'User-Agent': 'com.ss.android.ugc.aweme/110101 (Linux; U; Android 10; en_US; Pixel 4; Build/QQ3A.200805.001; Cronet/TTNetVersion:6c7b701a 2020-07-28 QuicVersion:0144d358 2020-03-27)',
-                }
-            });
+            const apiRes = await fetchWithTimeout(mobileApiUrl, { headers: { 'User-Agent': douyinUA } });
             if (apiRes.ok) {
                 const apiData = await apiRes.json();
                 const aweme = apiData?.aweme_list?.[0];

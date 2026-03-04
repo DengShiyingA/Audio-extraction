@@ -8,9 +8,9 @@ export async function GET(req: Request) {
         return NextResponse.json({ error: 'URL is required' }, { status: 400 });
     }
 
-    // If the URL is a relative internal path (e.g. /api/youtube?url=...), resolve it internally
+    // If the URL is a relative internal path (e.g. /api/youtube?url=...), call localhost directly
     const resolvedUrl = targetUrl.startsWith('/')
-        ? new URL(targetUrl, req.url).toString()
+        ? `http://localhost:${process.env.PORT || 3000}${targetUrl}`
         : targetUrl;
 
     try {

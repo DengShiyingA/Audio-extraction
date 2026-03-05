@@ -48,11 +48,16 @@ export default function Home() {
         setStatus('downloading');
         setProgress({ current: 0, total: 1 });
 
-        // Server-side streaming URLs (e.g. /api/youtube): set directly as audio src, no fetch needed
+        // Server-side streaming URLs (e.g. /api/youtube): fetch and stream to blob
         if (isServerStream || segments[0].startsWith('/api/')) {
           setAudioFormat(format || 'mp3');
+          setProgress({ current: 0, total: 1 });
+          const res = await fetch(segments[0]);
+          if (!res.ok) throw new Error(`Status ${res.status}: Failed to fetch segment`);
+          const buf = await res.arrayBuffer();
           setProgress({ current: 1, total: 1 });
-          setFinalAudioUrl(segments[0]);
+          const mime = format === 'mp3' ? 'audio/mpeg' : format === 'webm' ? 'audio/webm' : 'audio/mp4';
+          setFinalAudioUrl(URL.createObjectURL(new Blob([buf], { type: mime })));
           setStatus('done');
           return;
         }

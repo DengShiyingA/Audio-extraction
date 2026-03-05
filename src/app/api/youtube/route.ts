@@ -35,11 +35,9 @@ export async function GET(req: Request) {
             );
             unlink(tmpInput).catch(() => {});
         } else {
-            // yt-dlp based extraction (YouTube, XiaoHongShu, etc.)
-            const isXhs = url.includes('xiaohongshu.com') || url.includes('xhslink.com');
-            const cookieArg = isXhs ? '--cookies "/www/wwwroot/audio.dengshiying.com/cookies/xiaohongshu.txt"' : '';
+            // yt-dlp based extraction (YouTube, Netease, etc.)
             const { stderr } = await execAsync(
-                `yt-dlp --format "bestaudio" --no-playlist ${cookieArg} -o "${tmpBase}.%(ext)s" "${url}"`,
+                `yt-dlp --format "bestaudio" --no-playlist -o "${tmpBase}.%(ext)s" "${url}"`,
                 { timeout: 120000 }
             );
             if (stderr) console.error('[yt-dlp stderr]', stderr.slice(0, 500));
@@ -54,13 +52,23 @@ export async function GET(req: Request) {
                 webm: 'audio/webm', mp4: 'audio/mp4', m4a: 'audio/mp4',
                 mp3: 'audio/mpeg', ogg: 'audio/ogg',
             };
-            const data = await readFile(outFile);
-            unlink(outFile).catch(() => {});
-            return new Response(data, {
+
+            // Stream the file to the client
+            const { createReadStream } = await import('fs');
+            const { stat } = await import('fs/promises');
+            const fileSize = (await stat(outFile)).size;
+            const stream = createReadStream(outFile);
+            const nodeStream = stream as unknown as ReadableStream;
+
+            // Clean up after stream ends
+            stream.on('close', () => unlink(outFile).catch(() => {}));
+
+            return new Response(nodeStream, {
                 headers: {
                     'Content-Type': mimeMap[ext] || 'audio/webm',
                     'Content-Disposition': `attachment; filename="audio.${ext}"`,
-                    'Content-Length': String(data.length),
+                    'Content-Length': String(fileSize),
+                    'Accept-Ranges': 'bytes',
                 },
             });
         }

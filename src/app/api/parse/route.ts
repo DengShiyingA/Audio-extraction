@@ -251,6 +251,30 @@ export async function POST(req: Request) {
         }
 
 
+        // Kuaishou (快手)
+        if (url.includes('kuaishou.com') || url.includes('v.kuaishou.com') || url.includes('chenzhongtech.com')) {
+            const mobileUA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
+            // Follow short link redirect
+            let ksUrl = url;
+            if (url.includes('v.kuaishou.com')) {
+                const r = await fetch(url, { method: 'GET', redirect: 'manual', headers: { 'User-Agent': mobileUA } });
+                ksUrl = r.headers.get('location') || url;
+            }
+            const pageRes = await fetch(ksUrl, { headers: { 'User-Agent': mobileUA } });
+            const html = await pageRes.text();
+            // Extract first mp4 URL from mainMvUrls
+            const mvMatch = html.match(/"mainMvUrls"\s*:\s*\[\s*\{[^}]*"url"\s*:\s*"(https:\/\/[^"]+\.mp4[^"]*)"/);
+            if (mvMatch) {
+                return NextResponse.json({ segments: [mvMatch[1]], raw: mvMatch[1], isSingleFile: true, format: 'mp4' });
+            }
+            // Fallback: any kwaicdn/kwimgs mp4
+            const mp4Match = html.match(/"url"\s*:\s*"(https:\/\/[^"]*(?:kwaicdn|kwimgs)[^"]+\.mp4[^"]*)"/);
+            if (mp4Match) {
+                return NextResponse.json({ segments: [mp4Match[1]], raw: mp4Match[1], isSingleFile: true, format: 'mp4' });
+            }
+            throw new Error('无法从该快手视频中提取音频，请检查链接是否有效。');
+        }
+
         // YouTube / yt-dlp — return a server-side streaming URL (IP-bound direct links can't be proxied)
         if (url.includes('youtube.com/') || url.includes('youtu.be/') || url.includes('youtube.com/shorts/')) {
             const streamUrl = `/api/youtube?url=${encodeURIComponent(url)}`;

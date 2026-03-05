@@ -278,12 +278,6 @@ export async function POST(req: Request) {
             return NextResponse.json({ segments: [streamUrl], raw: streamUrl, isSingleFile: true, format: 'webm', isServerStream: true });
         }
 
-        // XiaoHongShu (小红书) — yt-dlp with cookie file
-        if (url.includes('xiaohongshu.com') || url.includes('xhslink.com')) {
-            const streamUrl = `/api/youtube?url=${encodeURIComponent(url)}`;
-            return NextResponse.json({ segments: [streamUrl], raw: streamUrl, isSingleFile: true, format: 'm4a', isServerStream: true });
-        }
-
         // Standard M3U8 Fetching
         const response = await fetch(m3u8Url);
         if (!response.ok) {

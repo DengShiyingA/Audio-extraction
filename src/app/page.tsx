@@ -3,14 +3,8 @@
 import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Download, Loader2, Link2, Check, AlertCircle, XCircle, Music } from 'lucide-react';
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
 import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { toBlobURL } from '@ffmpeg/util';
-
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
 
 export default function Home() {
   const [url, setUrl] = useState('');
@@ -21,7 +15,6 @@ export default function Home() {
   const [convertLog, setConvertLog] = useState('');
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [finalAudioUrl, setFinalAudioUrl] = useState<string | null>(null);
-  const [downloadName, setDownloadName] = useState('audio.mp3');
   const [audioFormat, setAudioFormat] = useState<string>('mp3');
   const ffmpegRef = useRef<FFmpeg | null>(null);
   const ffmpegLogRef = useRef<((e: { message: string }) => void) | null>(null);
@@ -233,7 +226,7 @@ export default function Home() {
             transition={{ duration: 0.9, ease: easeOvershoot, delay: 0.35 }}
             className="text-xl md:text-2xl text-[#6e6e73] max-w-2xl mx-auto font-medium tracking-tight leading-relaxed mt-8"
           >
-            支持直接粘贴 SoundCloud、汽水音乐、抖音、快手、小红书、YouTube 视频分享链接，以及 m3u8 播放列表网址，即可完成音频解析和下载。
+            支持直接粘贴 SoundCloud、汽水音乐、抖音、快手、YouTube 视频分享链接，以及 m3u8 播放列表网址，即可完成音频解析和下载。
           </motion.p>
         </div>
 

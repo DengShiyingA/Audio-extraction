@@ -233,7 +233,7 @@ export default function Home() {
             transition={{ duration: 0.9, ease: easeOvershoot, delay: 0.35 }}
             className="text-xl md:text-2xl text-[#6e6e73] max-w-2xl mx-auto font-medium tracking-tight leading-relaxed mt-8"
           >
-            支持直接粘贴 SoundCloud、汽水音乐、抖音视频分享链接，以及 m3u8 播放列表网址，即可完成音频解析和下载。
+            支持直接粘贴 SoundCloud、汽水音乐、抖音、快手、小红书、YouTube 视频分享链接，以及 m3u8 播放列表网址，即可完成音频解析和下载。
           </motion.p>
         </div>
 

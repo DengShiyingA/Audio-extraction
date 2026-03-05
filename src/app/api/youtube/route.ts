@@ -35,21 +35,31 @@ export async function GET(req: Request) {
             );
             unlink(tmpInput).catch(() => {});
         } else {
-            // YouTube: use yt-dlp
-            const tmpFile = `${tmpBase}.webm`;
+            // yt-dlp based extraction (YouTube, XiaoHongShu, etc.)
+            const isXhs = url.includes('xiaohongshu.com') || url.includes('xhslink.com');
+            const cookieArg = isXhs ? '--cookies "/www/wwwroot/audio.dengshiying.com/cookies/xiaohongshu.txt"' : '';
             const { stderr } = await execAsync(
-                `yt-dlp --format "bestaudio" --no-playlist -o "${tmpFile}" "${url}"`,
+                `yt-dlp --format "bestaudio" --no-playlist ${cookieArg} -o "${tmpBase}.%(ext)s" "${url}"`,
                 { timeout: 120000 }
             );
             if (stderr) console.error('[yt-dlp stderr]', stderr.slice(0, 500));
 
-            // Return webm directly for YouTube (no conversion needed)
-            const data = await readFile(tmpFile);
-            unlink(tmpFile).catch(() => {});
+            // Find the output file (extension varies by platform)
+            const { stdout: lsOut } = await execAsync(`ls "${tmpBase}."* 2>/dev/null || true`);
+            const outFile = lsOut.trim().split('\n')[0];
+            if (!outFile) throw new Error('yt-dlp did not produce an output file');
+
+            const ext = outFile.split('.').pop() || 'webm';
+            const mimeMap: Record<string, string> = {
+                webm: 'audio/webm', mp4: 'audio/mp4', m4a: 'audio/mp4',
+                mp3: 'audio/mpeg', ogg: 'audio/ogg',
+            };
+            const data = await readFile(outFile);
+            unlink(outFile).catch(() => {});
             return new Response(data, {
                 headers: {
-                    'Content-Type': 'audio/webm',
-                    'Content-Disposition': 'attachment; filename="audio.webm"',
+                    'Content-Type': mimeMap[ext] || 'audio/webm',
+                    'Content-Disposition': `attachment; filename="audio.${ext}"`,
                     'Content-Length': String(data.length),
                 },
             });

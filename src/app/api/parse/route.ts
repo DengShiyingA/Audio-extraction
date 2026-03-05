@@ -288,9 +288,10 @@ export async function POST(req: Request) {
             return NextResponse.json({ segments: [streamUrl], raw: streamUrl, isSingleFile: true, format: 'mp3', isServerStream: true });
         }
 
-        // QQ 音乐
+        // QQ 音乐（统一 URL 格式，ryqq_v2 → ryqq）
         if (url.includes('y.qq.com')) {
-            const streamUrl = `/api/youtube?url=${encodeURIComponent(url)}&cookies=qq`;
+            const normalizedUrl = url.replace('/ryqq_v2/', '/ryqq/');
+            const streamUrl = `/api/youtube?url=${encodeURIComponent(normalizedUrl)}&cookies=qq`;
             return NextResponse.json({ segments: [streamUrl], raw: streamUrl, isSingleFile: true, format: 'mp3', isServerStream: true });
         }
 

@@ -272,10 +272,14 @@ export async function POST(req: Request) {
             throw new Error('无法从该快手视频中提取音频，请检查链接是否有效。');
         }
 
-        // 网易云音乐短链接跳转
+        // 网易云音乐短链接跳转（163cn.tv 不返回 Location header，直接渲染 HTML）
         if (url.includes('163cn.tv')) {
             const r = await fetch(url, { method: 'GET', redirect: 'follow' });
-            url = r.url || url;
+            const html = await r.text();
+            // 从 canonical 或 og:url 提取真实 URL
+            const canonMatch = html.match(/<link rel="canonical" href="([^"]+)"/);
+            const ogMatch = html.match(/<meta property="og:url" content="([^"]+)"/);
+            url = canonMatch?.[1] || ogMatch?.[1] || url;
         }
 
         // 网易云音乐

@@ -288,13 +288,6 @@ export async function POST(req: Request) {
             return NextResponse.json({ segments: [streamUrl], raw: streamUrl, isSingleFile: true, format: 'mp3', isServerStream: true });
         }
 
-        // QQ 音乐（统一 URL 格式，ryqq_v2 → ryqq）
-        if (url.includes('y.qq.com')) {
-            const normalizedUrl = url.replace('/ryqq_v2/', '/ryqq/');
-            const streamUrl = `/api/youtube?url=${encodeURIComponent(normalizedUrl)}&cookies=qq`;
-            return NextResponse.json({ segments: [streamUrl], raw: streamUrl, isSingleFile: true, format: 'mp3', isServerStream: true });
-        }
-
         // YouTube / yt-dlp — return a server-side streaming URL (IP-bound direct links can't be proxied)
         if (url.includes('youtube.com/') || url.includes('youtu.be/') || url.includes('youtube.com/shorts/')) {
             const streamUrl = `/api/youtube?url=${encodeURIComponent(url)}`;

@@ -13,6 +13,7 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const url = searchParams.get('url');
     const direct = searchParams.get('direct') === '1';
+    const cookiesParam = searchParams.get('cookies'); // e.g. 'qq' → /root/cookies/qq.txt
 
     if (!url) {
         return NextResponse.json({ error: 'URL is required' }, { status: 400 });
@@ -35,9 +36,10 @@ export async function GET(req: Request) {
             );
             unlink(tmpInput).catch(() => {});
         } else {
-            // yt-dlp based extraction (YouTube, Netease, etc.)
+            // yt-dlp based extraction (YouTube, Netease, QQ Music, etc.)
+            const cookiesFlag = cookiesParam ? `--cookies /root/cookies/${cookiesParam}.txt` : '';
             const { stderr } = await execAsync(
-                `yt-dlp --format "bestaudio" --no-playlist -o "${tmpBase}.%(ext)s" "${url}"`,
+                `yt-dlp ${cookiesFlag} --format "bestaudio" --no-playlist -o "${tmpBase}.%(ext)s" "${url}"`,
                 { timeout: 120000 }
             );
             if (stderr) console.error('[yt-dlp stderr]', stderr.slice(0, 500));
